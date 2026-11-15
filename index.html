@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>心盘 · 起心动念，借卦观心</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#fafafa; --panel-2:#f4f4f5;
+    --border:#e4e4e7; --border-strong:#d4d4d8;
+    --text:#18181b; --muted:#71717a; --faint:#a1a1aa;
+    --accent:#4F46E5; --accent-press:#4338CA;
+    --accent-soft:#EEF2FF; --accent-border:#C7D2FE;
+    --yang:#18181b; --yin:#71717a;
+    --radius:10px;
+    --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:48px 24px 80px;}
+  header.top{text-align:center;margin-bottom:40px;}
+  header.top .mark{
+    font-family:var(--mono);letter-spacing:.42em;font-size:12px;
+    color:var(--accent);text-transform:uppercase;margin-bottom:14px;
+  }
+  header.top h1{font-size:30px;font-weight:600;margin:0 0 8px;letter-spacing:.04em;}
+  header.top p{color:var(--muted);font-size:14px;margin:0;}
+
+  .screen{display:none;animation:fade .5s ease both;}
+  .screen.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+  .step-hint{display:flex;align-items:center;gap:10px;color:var(--faint);font-size:12px;margin-bottom:18px;font-family:var(--mono);}
+  .step-hint .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+
+  .group{margin-bottom:28px;}
+  .group > label{display:block;font-size:13px;color:var(--muted);margin-bottom:12px;letter-spacing:.02em;}
+
+  .chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    border:1px solid var(--border);background:var(--panel);
+    padding:10px 18px;border-radius:999px;font-size:14px;cursor:pointer;
+    transition:all .18s ease;user-select:none;color:var(--text);
+  }
+  .chip:hover{border-color:var(--border-strong);}
+  .chip.sel{background:var(--accent-soft);border-color:var(--accent-border);color:var(--accent-press);font-weight:500;}
+
+  textarea,input[type=number]{
+    width:100%;border:1px solid var(--border);border-radius:var(--radius);
+    background:var(--panel);padding:12px 14px;font-family:var(--sans);font-size:14px;
+    color:var(--text);resize:vertical;transition:border-color .18s ease;
+  }
+  textarea:focus,input:focus{outline:none;border-color:var(--accent);}
+  textarea::placeholder{color:var(--faint);}
+
+  .numrow{display:flex;gap:14px;}
+  .numrow > div{flex:1;}
+  .numrow label{display:block;font-size:12px;color:var(--muted);margin-bottom:8px;}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border:1px solid var(--accent);background:var(--accent);color:#fff;
+    padding:13px 26px;border-radius:var(--radius);font-size:15px;font-weight:500;
+    cursor:pointer;transition:all .18s ease;font-family:var(--sans);
+  }
+  .btn:hover{background:var(--accent-press);border-color:var(--accent-press);}
+  .btn.ghost{background:transparent;color:var(--accent);border-color:var(--accent-border);}
+  .btn.ghost:hover{background:var(--accent-soft);}
+  .btn.big{width:100%;padding:18px;font-size:16px;letter-spacing:.12em;}
+
+  .breath{
+    width:160px;height:160px;border-radius:50%;
+    border:1px solid var(--accent-border);background:var(--accent-soft);
+    margin:0 auto 30px;display:flex;align-items:center;justify-content:center;
+    color:var(--accent-press);font-family:var(--mono);font-size:14px;letter-spacing:.2em;
+    animation:breathe 4.2s ease-in-out infinite;
+  }
+  @keyframes breathe{
+    0%,100%{transform:scale(.92);opacity:.7;}
+    50%{transform:scale(1.06);opacity:1;}
+  }
+  .center{text-align:center;}
+
+  /* result */
+  .verdict{
+    border:1px solid var(--accent-border);background:var(--accent-soft);
+    border-radius:var(--radius);padding:18px 20px;margin-bottom:24px;
+  }
+  .verdict .tag{font-family:var(--mono);font-size:12px;letter-spacing:.18em;color:var(--accent-press);}
+  .verdict .txt{font-size:15px;margin-top:6px;color:var(--text);}
+
+  .three{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;}
+  .hexcard{
+    border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px 12px;text-align:center;background:var(--panel);
+  }
+  .hexcard.accent{border-color:var(--accent-border);background:var(--accent-soft);}
+  .hexcard .role{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--muted);margin-bottom:12px;}
+  .hexcard .hexname{font-size:17px;font-weight:600;margin-top:12px;}
+  .hexcard .sym{font-family:var(--mono);color:var(--accent);font-size:13px;margin-top:4px;}
+  .hexcard .lines{margin-top:10px;display:inline-block;}
+
+  .trig,.hex{display:flex;flex-direction:column;gap:5px;align-items:center;}
+  .hex{gap:4px;}
+  .bar{height:5px;border-radius:3px;background:var(--yang);}
+  .bar.yang{width:46px;}
+  .bar.yin{width:46px;display:flex;justify-content:space-between;background:transparent;}
+  .bar.yin span{width:42%;height:5px;border-radius:3px;background:var(--yin);}
+
+  .block{border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:18px;background:var(--bg);}
+  .block h3{font-size:14px;margin:0 0 12px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .block h3 .num{font-family:var(--mono);color:var(--accent);font-size:12px;}
+  .block .body{font-size:14.5px;color:var(--text);}
+  .block .sub{font-size:13px;color:var(--muted);margin-top:8px;}
+  .tuan{font-family:"Songti SC","STSong",serif;font-size:15px;color:#3f3f46;letter-spacing:.02em;}
+
+  .params{font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--panel-2);border-radius:8px;padding:10px 14px;display:inline-block;}
+
+  .disclaim{
+    margin-top:36px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12px;color:var(--faint);line-height:1.7;text-align:center;
+  }
+  .actions{display:flex;gap:12px;margin-top:30px;}
+  .actions .btn{flex:1;}
+  .note{font-size:12px;color:var(--faint);margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="mark">XIN · PAN</div>
+    <h1>心盘</h1>
+    <p>起心动念，借卦观心 · 一枚数字心镜</p>
+  </header>
+
+  <!-- Step 1: 静心起念 -->
+  <section id="s1" class="screen active">
+    <div class="step-hint"><span class="dot"></span>第一步 · 静心起念</div>
+
+    <div class="group">
+      <label>你心里挂念的是哪一类事？（选定后，解读会据此落点）</label>
+      <div class="chips" id="catChips">
+        <div class="chip" data-cat="感情">感情</div>
+        <div class="chip" data-cat="事业">事业</div>
+        <div class="chip" data-cat="财运">财运</div>
+        <div class="chip" data-cat="决策">决策 / 选择</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>把问题在心里默念清楚（可写下来，也可只放在心里）</label>
+      <textarea id="qtext" rows="2" placeholder="例：这段关系接下来会如何发展？ / 这个机会该不该接？"></textarea>
+    </div>
+
+    <div class="group">
+      <label>起卦方式</label>
+      <div class="chips" id="modeChips">
+        <div class="chip sel" data-mode="time">起心动念 · 时辰（取当下刹那）</div>
+        <div class="chip" data-mode="num">报数（心里想两个数字）</div>
+      </div>
+      <div id="numInputs" class="numrow" style="display:none;margin-top:14px;">
+        <div><label>第一个数</label><input type="number" id="numA" placeholder="如 7" /></div>
+        <div><label>第二个数</label><input type="number" id="numB" placeholder="如 23" /></div>
+      </div>
+    </div>
+
+    <button class="btn big" id="toCast">心已静，去起盘 →</button>
+  </section>
+
+  <!-- Step 2: 起盘 -->
+  <section id="s2" class="screen">
+    <div class="step-hint"><span class="dot"></span>第二步 · 起心动念 · 起盘</div>
+    <div class="center">
+      <div class="breath" id="breath">观 心</div>
+      <p id="castPrompt" style="color:var(--muted);font-size:14px;margin:0 0 26px;">在念头最清晰的刹那落下——</p>
+      <button class="btn big" id="castBtn" style="max-width:320px;margin:0 auto;">起 盘</button>
+      <p class="note" id="castNote"></p>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="back1">← 重新想想</button>
+    </div>
+  </section>
+
+  <!-- Step 3: 结果 -->
+  <section id="s3" class="screen">
+    <div class="step-hint"><span class="dot"></span>第三步 · 借卦观心</div>
+    <div id="result"></div>
+    <div class="actions">
+      <button class="btn ghost" id="back2">← 再起一卦</button>
+      <button class="btn" id="restart">重新来过</button>
+    </div>
+    <div class="disclaim">
+      心盘是一枚「借卦观心」的自省工具。卦象只是镜子，照见的是你此刻的心与势，并非定数。<br/>
+      结果仅供启迪与娱乐，不构成任何专业（命理、法律、医疗、投资）建议。命运自在人心。
+    </div>
+  </section>
+</div>
+
+<script>
+/* ============ 基础数据 ============ */
+const TRIGRAMS = {
+  1:{name:'乾',sym:'☰',wu:'金',nature:'天',binary:[1,1,1]},
+  2:{name:'兑',sym:'☱',wu:'金',nature:'泽',binary:[1,1,0]},
+  3:{name:'离',sym:'☲',wu:'火',nature:'火',binary:[1,0,1]},
+  4:{name:'震',sym:'☳',wu:'木',nature:'雷',binary:[1,0,0]},
+  5:{name:'巽',sym:'☴',wu:'木',nature:'风',binary:[0,1,1]},
+  6:{name:'坎',sym:'☵',wu:'水',nature:'水',binary:[0,1,0]},
+  7:{name:'艮',sym:'☶',wu:'土',nature:'山',binary:[0,0,1]},
+  8:{name:'坤',sym:'☷',wu:'土',nature:'地',binary:[0,0,0]},
+};
+const BRANCH = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+
+const HEX = [
+ {n:1,name:'乾',U:1,D:1,tuan:'元，亨，利，贞。',xiang:'刚健中正，自强不息，纯阳开端之象。'},
+ {n:2,name:'坤',U:8,D:8,tuan:'元亨，利牝马之贞。君子有攸往，先迷后得主，利。',xiang:'厚德载物，柔顺包容，承载守成之象。'},
+ {n:3,name:'屯',U:6,D:4,tuan:'元亨，利贞。勿用有攸往，利建侯。',xiang:'万物始生，艰难起步，宜固本扎根、求贤辅助。'},
+ {n:4,name:'蒙',U:7,D:6,tuan:'亨。匪我求童蒙，童蒙求我。初筮告，再三渎，渎则不告。利贞。',xiang:'蒙昧待启，启蒙养正，宜虚心受教。'},
+ {n:5,name:'需',U:6,D:1,tuan:'有孚，光亨，贞吉。利涉大川。',xiang:'待时而动，守正待机则通。'},
+ {n:6,name:'讼',U:1,D:6,tuan:'有孚，窒。惕中吉。终凶。利见大人，不利涉大川。',xiang:'争讼之象，慎防口舌，宜退让中和。'},
+ {n:7,name:'师',U:8,D:6,tuan:'贞，丈人吉，无咎。',xiang:'兵众之象，用师以正，倚重长者统率。'},
+ {n:8,name:'比',U:6,D:8,tuan:'吉。原筮，元永贞，无咎。不宁方来，后夫凶。',xiang:'亲比辅佐，择善而附，人和则吉。'},
+ {n:9,name:'小畜',U:5,D:1,tuan:'亨。密云不雨，自我西郊。',xiang:'小有蓄积，阴畜其阳，宜积小成待发。'},
+ {n:10,name:'履',U:1,D:2,tuan:'履虎尾，不咥人，亨。',xiang:'履险如夷，谨慎前行，礼以行之则亨。'},
+ {n:11,name:'泰',U:8,D:1,tuan:'小往大来，吉亨。',xiang:'天地交泰，阴阳和合，通达兴盛之时。'},
+ {n:12,name:'否',U:1,D:8,tuan:'否之匪人，不利君子贞，大往小来。',xiang:'天地不交，闭塞不通，宜韬光养晦。'},
+ {n:13,name:'同人',U:1,D:3,tuan:'同人于野，亨。利涉大川，利君子贞。',xiang:'与人和同，协和共进，利涉险阻。'},
+ {n:14,name:'大有',U:3,D:1,tuan:'元亨。',xiang:'富有日新，大而能谦，盛德之象。'},
+ {n:15,name:'谦',U:8,D:7,tuan:'亨，君子有终。',xiang:'谦尊而光，卑而不可逾，君子有终。'},
+ {n:16,name:'豫',U:4,D:8,tuan:'利建侯行师。',xiang:'欢乐顺动，未雨绸缪，宜建侯行师。'},
+ {n:17,name:'随',U:2,D:4,tuan:'元亨利贞，无咎。',xiang:'随时而动，从善随顺，元亨利贞。'},
+ {n:18,name:'蛊',U:7,D:5,tuan:'元亨，利涉大川。先甲三日，后甲三日。',xiang:'积弊待治，拨乱反正，宜革故鼎新。'},
+ {n:19,name:'临',U:8,D:2,tuan:'元，亨，利，贞。至于八月有凶。',xiang:'临下亲民，阳气渐长，居安思危。'},
+ {n:20,name:'观',U:5,D:8,tuan:'盥而不荐，有孚颙若。',xiang:'观风察俗，省方观民，洁诚自守。'},
+ {n:21,name:'噬嗑',U:3,D:4,tuan:'亨。利用狱。',xiang:'咬合去梗，明罚敕法，决而能通。'},
+ {n:22,name:'贲',U:7,D:3,tuan:'亨。小利有攸往。',xiang:'文饰之美，质文相济，尚饰而不溺。'},
+ {n:23,name:'剥',U:7,D:8,tuan:'不利有攸往。',xiang:'阴剥其阳，小人得势，宜止不宜进。'},
+ {n:24,name:'复',U:8,D:4,tuan:'亨。出入无疾，朋来无咎。反复其道，七日来复，利有攸往。',xiang:'一阳来复，生机回归，反复其道而利往。'},
+ {n:25,name:'无妄',U:1,D:4,tuan:'元，亨，利，贞。其匪正有眚，不利有攸往。',xiang:'至诚无妄，顺天休命，不妄动则吉。'},
+ {n:26,name:'大畜',U:7,D:1,tuan:'利贞，不家食吉，利涉大川。',xiang:'厚积大畜，畜德养贤，利涉大川。'},
+ {n:27,name:'颐',U:7,D:4,tuan:'贞吉。观颐，自求口实。',xiang:'颐养之道，慎言节食，自求口实。'},
+ {n:28,name:'大过',U:2,D:5,tuan:'栋桡，利有攸往，亨。',xiang:'非常之时，栋桡将倾，独立不惧、遁世无闷。'},
+ {n:29,name:'坎',U:6,D:6,tuan:'习坎，有孚，维心亨，行有尚。',xiang:'重重险陷，维心亨通，习坎有孚则出险。'},
+ {n:30,name:'离',U:3,D:3,tuan:'利贞，亨。畜牝牛，吉。',xiang:'明丽附著，继明照四方，柔顺中正则吉。'},
+ {n:31,name:'咸',U:2,D:7,tuan:'亨，利贞，取女吉。',xiang:'感应交合，少男少女，以虚受人则吉。'},
+ {n:32,name:'恒',U:4,D:5,tuan:'亨，无咎，利贞，利有攸往。',xiang:'恒久不已，雷风相与，持之以恒则利。'},
+ {n:33,name:'遁',U:1,D:7,tuan:'亨，小利贞。',xiang:'退避保身，与时偕行，小利贞。'},
+ {n:34,name:'大壮',U:4,D:1,tuan:'利贞。',xiang:'阳刚壮盛，壮勿妄动，守正则利。'},
+ {n:35,name:'晋',U:3,D:8,tuan:'康侯用锡马蕃庶，昼日三接。',xiang:'进长之象，明出地上，日进其明。'},
+ {n:36,name:'明夷',U:8,D:3,tuan:'利艰贞。',xiang:'光明受伤，韬光养晦，利艰贞。'},
+ {n:37,name:'家人',U:5,D:3,tuan:'利女贞。',xiang:'家道正齐，女主内正，风化之始。'},
+ {n:38,name:'睽',U:3,D:2,tuan:'小事吉。',xiang:'乖离背反，同中求异，小事可成。'},
+ {n:39,name:'蹇',U:6,D:7,tuan:'利西南，不利东北。利见大人，贞吉。',xiang:'蹇难在前，反身修德，利西南不利东北。'},
+ {n:40,name:'解',U:4,D:6,tuan:'利西南，无所往，其来复吉。有攸往，夙吉。',xiang:'险难消解，舒缓和解，夙吉。'},
+ {n:41,name:'损',U:7,D:2,tuan:'有孚，元吉，无咎，可贞，利有攸往。曷之用？二簋可用享。',xiang:'损下益上，损益有节，二簋可用享。'},
+ {n:42,name:'益',U:5,D:4,tuan:'利有攸往，利涉大川。',xiang:'损上益下，与时偕行，利有攸往。'},
+ {n:43,name:'夬',U:2,D:1,tuan:'扬于王庭，孚号有厉。告自邑，不利即戎，利有攸往。',xiang:'决去小人，刚决而和，扬于王庭而有厉。'},
+ {n:44,name:'姤',U:1,D:5,tuan:'女壮，勿用取女。',xiang:'阴阳相遇，女壮勿取，防微杜渐。'},
+ {n:45,name:'萃',U:2,D:8,tuan:'亨。王假有庙，利见大人，亨，利贞。用大牲吉，利有攸往。',xiang:'荟萃聚集，王假有庙，人和物聚。'},
+ {n:46,name:'升',U:8,D:5,tuan:'元亨，用见大人，勿恤，南征吉。',xiang:'积小成高，地中生木，用见大人南征吉。'},
+ {n:47,name:'困',U:2,D:6,tuan:'亨，贞，大人吉，无咎。有言不信。',xiang:'穷困之象，处困守正，有言不信。'},
+ {n:48,name:'井',U:6,D:5,tuan:'改邑不改井，无丧无得，往来井井。汔至，亦未繘井，羸其瓶，凶。',xiang:'养而不穷，井养不穷，宜修德惠民。'},
+ {n:49,name:'革',U:2,D:3,tuan:'巳日乃孚，元亨利贞，悔亡。',xiang:'除旧布新，巳日乃孚，顺天应人。'},
+ {n:50,name:'鼎',U:3,D:5,tuan:'元吉，亨。',xiang:'鼎新取象，烹饪养贤，元吉亨通。'},
+ {n:51,name:'震',U:4,D:4,tuan:'亨。震来虩虩，笑言哑哑。震惊百里，不丧匕鬯。',xiang:'震动惊惧，恐惧修省，不丧匕鬯。'},
+ {n:52,name:'艮',U:7,D:7,tuan:'艮其背，不获其身，行其庭，不见其人，无咎。',xiang:'止其所止，时止则止，动静不失其时。'},
+ {n:53,name:'渐',U:5,D:7,tuan:'女归吉，利贞。',xiang:'循序渐进，女归吉，循序渐进则利。'},
+ {n:54,name:'归妹',U:4,D:2,tuan:'征凶，无攸利。',xiang:'婚嫁失正，行则凶，无攸利。'},
+ {n:55,name:'丰',U:4,D:3,tuan:'亨，王假之，勿忧，宜日中。',xiang:'丰大光明，日中则昃，宜日中勿忧。'},
+ {n:56,name:'旅',U:3,D:7,tuan:'小亨，旅贞吉。',xiang:'行旅飘寄，小亨旅贞，慎处逆境。'},
+ {n:57,name:'巽',U:5,D:5,tuan:'小亨，利有攸往，利见大人。',xiang:'顺而入之，随风申命，小亨利往。'},
+ {n:58,name:'兑',U:2,D:2,tuan:'亨，利贞。',xiang:'和悦说言，朋友讲习，亨利贞。'},
+ {n:59,name:'涣',U:5,D:6,tuan:'亨。王假有庙，利涉大川，利贞。',xiang:'涣散疏通，风行水上，王假有庙利涉。'},
+ {n:60,name:'节',U:6,D:2,tuan:'亨。苦节不可贞。',xiang:'节制有度，苦节不可，节而能通。'},
+ {n:61,name:'中孚',U:5,D:2,tuan:'豚鱼吉，利涉大川，利贞。',xiang:'中心诚信，豚鱼吉，舟虚有信。'},
+ {n:62,name:'小过',U:4,D:7,tuan:'亨，利贞。可小事，不可大事。飞鸟遗之音，不宜上，宜下，大吉。',xiang:'小者过越，飞鸟遗音，宜下不宜上。'},
+ {n:63,name:'既济',U:6,D:3,tuan:'亨，小利贞，初吉终乱。',xiang:'事已成矣，初吉终乱，守成防变。'},
+ {n:64,name:'未济',U:3,D:6,tuan:'亨，小狐汔济，濡其尾，无攸利。',xiang:'事未竟也，小狐汔济，慎终如始。'},
+];
+
+/* ============ 工具函数 ============ */
+function trigramFromBinary(bin){
+  const key = bin.join('');
+  for(const k in TRIGRAMS){ if(TRIGRAMS[k].binary.join('')===key) return +k; }
+  return null;
+}
+function trgIdx(n){ return ((n%8)+8)%8 || 8; }
+function lineIdx(n){ return ((n%6)+6)%6 || 6; }
+
+// 由上下卦取 6 爻（底->顶）
+function linesFromUD(U,D){
+  const ub=TRIGRAMS[U].binary, db=TRIGRAMS[D].binary; // [上,中,下]
+  return [ db[2], db[1], db[0], ub[2], ub[1], ub[0] ]; // 初,二,三,四,五,上
+}
+function findHex(U,D){ return HEX.find(h=>h.U===U && h.D===D); }
+
+// 五行生克
+const SHENG={木:'火',火:'土',土:'金',金:'水',水:'木'};
+const KE={木:'土',土:'水',水:'火',火:'金',金:'木'};
+function sheng(a,b){ return SHENG[a]===b; }
+function ke(a,b){ return KE[a]===b; }
+
+// 体用判定
+function tiYong(hex, dong){
+  const idx=dong-1;
+  const ti = idx<3 ? hex.D : hex.U;   // 动在下卦则下为用、上为体
+  const yong = idx<3 ? hex.U : hex.D;
+  const tw=TRIGRAMS[ti].wu, yw=TRIGRAMS[yong].wu;
+  let level, txt;
+  if(tw===yw){ level='平'; txt='体用比和，事多顺遂，少有掣肘。'; }
+  else if(sheng(yw,tw)){ level='大吉'; txt='用生体——外来助你，顺势而得，宜把握。'; }
+  else if(sheng(tw,yw)){ level='小耗'; txt='体生用——你往外输出能量，事可成但须耗神费力。'; }
+  else if(ke(tw,yw)){ level='吉'; txt='体克用——你能驾驭局面，费力而终成。'; }
+  else { level='凶'; txt='用克体——外力压迫于你，宜守不宜攻，慎防损耗。'; }
+  return {ti,yong,tw,yw,level,txt};
+}
+
+// 卦气旺衰（体卦是否得令，按公历季节近似）
+function seasonStrength(wu, month){
+  let cur;
+  if(month>=3&&month<=5) cur='木';
+  else if(month>=6&&month<=8) cur='火';
+  else if(month>=9&&month<=11) cur='金';
+  else cur='水';
+  if(wu==='土') return '土旺四季，体卦得地，根基稳。';
+  return wu===cur ? '体卦当令得时，气势方盛。' : '体卦失令，宜借势蓄力，不宜强出头。';
+}
+
+// 动爻启示
+const POS_TXT={
+  1:'初爻·事之始，潜藏未明，宜静观其变。',
+  2:'二爻·得中多誉，宜稳中进取。',
+  3:'三爻·处下卦之极，多危，宜慎守。',
+  4:'四爻·近君多惧，宜审时度势。',
+  5:'五爻·居君位多功，宜果决而行。',
+  6:'上爻·事之终，易见其果，宜善始善终。',
+};
+const LINE_YINYANG = y => y===1 ? '此爻阳刚，主主动作为、向前一步。' : '此爻阴柔，主静守待时、以柔化之。';
+
+/* ============ 起卦 ============ */
+function castTime(date){
+  const y=date.getFullYear(), m=date.getMonth()+1, d=date.getDate(), h=date.getHours();
+  const yearZhi=((y-4)%12+12)%12;            // 0=子
+  const yearNum=yearZhi+1;                    // 1..12
+  const monthNum=m;                           // 1..12
+  const dayNum=d;                             // 1..31
+  let branch=Math.floor((h+1)/2); if(branch===0) branch=12;
+  const hourNum=branch;                       // 1..12
+  const up=trgIdx(yearNum+monthNum+dayNum);
+  const down=trgIdx(yearNum+monthNum+dayNum+hourNum);
+  const dong=lineIdx(yearNum+monthNum+dayNum+hourNum);
+  return {
+    method:'time',
+    params:{yearZhi:BRANCH[yearZhi], monthNum, dayNum, hourZhi:BRANCH[branch-1]},
+    up, down, dong
+  };
+}
+function castNum(a,b){
+  const up=trgIdx(a), down=trgIdx(b), dong=lineIdx(a+b);
+  return { method:'num', params:{a,b}, up, down, dong };
+}
+
+/* ============ 渲染 ============ */
+function lineHTML(yang){ return yang ? '<div class="bar yang"></div>' : '<div class="bar yin"><span></span><span></span></div>'; }
+function trigramHTML(t){ const b=TRIGRAMS[t].binary; return '<div class="trig">'+lineHTML(b[0])+lineHTML(b[1])+lineHTML(b[2])+'</div>'; }
+function hexHTML(L){ // L 底->顶
+  let s='<div class="hex">';
+  for(let i=L.length-1;i>=0;i--) s+=lineHTML(L[i]===1);
+  return s+'</div>';
+}
+
+function hexCard(hex, L, role, accent){
+  return '<div class="hexcard'+(accent?' accent':'')+'">'
+    +'<div class="role">'+role+'</div>'
+    +'<div class="lines">'+hexHTML(L)+'</div>'
+    +'<div class="hexname">'+hex.name+'</div>'
+    +'<div class="sym">'+TRIGRAMS[hex.U].sym+TRIGRAMS[hex.D].sym+'</div>'
+    +'</div>';
+}
+
+function categoryReading(cat, hex, ty, dong){
+  const labelMap={感情:'感情',事业:'事业',财运:'财运',决策:'眼前这桩选择与去向'};
+  const label=labelMap[cat]||'此事';
+  let base = '就你所问的「'+label+'」——本卦'+hex.name+'，'+hex.xiang;
+  let rel;
+  if(cat==='感情'){
+    rel = ty.level==='凶' ? '感情当前受压，外缘不甚顺，宜先安住自己、莫急于定论。'
+      : ty.level==='大吉' ? '感情有缘法相生，彼此助力，宜主动靠近、把话说明。'
+      : ty.level==='小耗' ? '感情需你多付出迁就，短期略耗神，付出要有分寸。'
+      : ty.level==='吉' ? '你在这段关系里能拿住主动权，但需用心经营方能成。'
+      : '感情大体平稳，宜顺其自然、以诚相待。';
+  } else if(cat==='事业'){
+    rel = ty.level==='凶' ? '事业当前阻力在外，宜守成、蛰伏，勿冒进揽责。'
+      : ty.level==='大吉' ? '事业得外力扶持，正是进取之时，宜大胆承接。'
+      : ty.level==='小耗' ? '事业需你多投入，事可成但伤神，量力而行。'
+      : ty.level==='吉' ? '你能驾驭此事，虽费力终有成效，宜把握节奏。'
+      : '事业平稳推进，按部就班即可。';
+  } else if(cat==='财运'){
+    rel = ty.level==='凶' ? '财气受抑，宜节流守财、莫妄动投资。'
+      : ty.level==='大吉' ? '财有源头相生，进益可期，宜顺势而为。'
+      : ty.level==='小耗' ? '求财需先付出成本，回报在后，谨慎测算。'
+      : ty.level==='吉' ? '你能掌控财局，劳而有得，宜稳中求进。'
+      : '财运平顺，量入为出便好。';
+  } else { // 决策
+    rel = ty.level==='凶' ? '此决定书宜缓，时机未到，强行则损。'
+      : ty.level==='大吉' ? '此抉择得天时人和，可果决落子。'
+      : ty.level==='小耗' ? '此路可行但代价不小，先算清成本再动。'
+      : ty.level==='吉' ? '此局你能主控，踏实推进可成。'
+      : '此决定无大碍，按本心与常理取舍即可。';
+  }
+  return base + ' ' + rel;
+}
+
+function mirrorAction(cat, ty){
+  const map={
+    凶:['今天宜守不宜攻。','做一件「减法」：暂缓、收回、不必现在回应。'],
+    大吉:['今天利于主动推进。','做一件「加法」：把想做的事，今天就落一小步。'],
+    小耗:['今天宜有节制地付出。','做一件「校准」：先确认成本与分寸，再动手。'],
+    吉:['今天可踏实前行。','做一件「定锚」：把计划里最关键的一环敲定。'],
+    平:['今天保持节奏即可。','做一件「观察」：不急着动，先看清楚再决定。'],
+  };
+  const m=map[ty.level]||map['平'];
+  return m[0]+m[1];
+}
+
+/* ============ 主流程 ============ */
+let STATE={cat:'感情', mode:'time'};
+
+const $=s=>document.querySelector(s);
+const screens=['s1','s2','s3'];
+function show(id){ screens.forEach(s=>$('#'+s).classList.toggle('active', s===id)); window.scrollTo(0,0); }
+
+// chips
+$('#catChips').addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(!c) return;
+  $('#catChips').querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));
+  c.classList.add('sel'); STATE.cat=c.dataset.cat;
+});
+$('#modeChips').addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(!c) return;
+  $('#modeChips').querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));
+  c.classList.add('sel'); STATE.mode=c.dataset.mode;
+  $('#numInputs').style.display = STATE.mode==='num' ? 'flex':'none';
+});
+
+$('#toCast').addEventListener('click',()=>{
+  if(STATE.mode==='num'){
+    const a=parseInt($('#numA').value,10), b=parseInt($('#numB').value,10);
+    if(!a||!b){ alert('请填入两个数字（正整数即可）。'); return; }
+    $('#castNote').textContent='将以你心中所报之数起卦。';
+  } else {
+    $('#castNote').textContent='将捕获此刻的时辰（年支·月数·日数·时辰）起卦——简化版，非严格农历干支。';
+  }
+  show('s2');
+});
+
+$('#back1').addEventListener('click',()=>show('s1'));
+$('#back2').addEventListener('click',()=>show('s2'));
+$('#restart').addEventListener('click',()=>{ $('#qtext').value=''; show('s1'); });
+
+$('#castBtn').addEventListener('click',()=>{
+  let r;
+  if(STATE.mode==='num'){
+    const a=parseInt($('#numA').value,10), b=parseInt($('#numB').value,10);
+    r=castNum(a,b);
+  } else {
+    r=castTime(new Date());
+  }
+  render(r);
+  show('s3');
+});
+
+function render(r){
+  const ben=findHex(r.up,r.down);
+  const benL=linesFromUD(r.up,r.down);
+  // 互卦
+  const huU=trigramFromBinary([benL[4],benL[3],benL[2]]);
+  const huD=trigramFromBinary([benL[3],benL[2],benL[1]]);
+  const hu=findHex(huU,huD);
+  const huL=linesFromUD(huU,huD);
+  // 变卦
+  const chL=benL.slice(); const di=r.dong-1; chL[di]=1-chL[di];
+  const chU=trigramFromBinary([chL[5],chL[4],chL[3]]);
+  const chD=trigramFromBinary([chL[2],chL[1],chL[0]]);
+  const ch=findHex(chU,chD);
+  const chLL=linesFromUD(chU,chD);
+  // 体用
+  const ty=tiYong(ben,r.dong);
+  // 参数显示
+  let paramHTML;
+  if(r.method==='time'){
+    const p=r.params;
+    paramHTML='起局参数（简化）：'+p.yearZhi+'年支 · 月'+p.monthNum+' · 日'+p.dayNum+' · '+p.hourZhi+'时';
+  } else {
+    paramHTML='报数：'+r.params.a+' / '+r.params.b;
+  }
+  // 卦气
+  const monthNow=new Date().getMonth()+1;
+  const qi=seasonStrength(ty.tw, monthNow);
+
+  const dongName=['初','二','三','四','五','上'][r.dong-1];
+  const yinyang=benL[r.dong-1]===1?1:0;
+
+  const verdictTag = {大吉:'大吉 · 顺势',吉:'吉 · 可成',平:'平 · 顺守',小耗:'小耗 · 须力',凶:'凶 · 宜守'}[ty.level];
+
+  let html='';
+  html+='<div class="verdict"><div class="tag">体用 · '+verdictTag+'</div>'
+      +'<div class="txt">'+ty.txt+'</div>'
+      +'<div class="sub" style="color:var(--muted);font-size:12.5px;margin-top:8px">'+qi
+      +'　体卦 '+TRIGRAMS[ty.ti].name+TRIGRAMS[ty.ti].nature+'（'+ty.tw+'）· 用卦 '+TRIGRAMS[ty.yong].name+TRIGRAMS[ty.yong].nature+'（'+ty.yw+'）'+'</div></div>';
+
+  html+='<div class="three">'
+      +hexCard(ben,benL,'本卦',true)
+      +hexCard(hu,huL,'互卦')
+      +hexCard(ch,chLL,'变卦')
+      +'</div>';
+
+  html+='<div class="block"><h3><span class="num">卦辞</span>'+ben.name+' · 第'+ben.n+'卦</h3>'
+      +'<div class="body tuan">'+ben.tuan+'</div>'
+      +'<div class="sub">'+ben.xiang+'</div></div>';
+
+  html+='<div class="block"><h3><span class="num">动爻</span>'+dongName+'爻动 · 变入 '+ch.name+'</h3>'
+      +'<div class="body">'+POS_TXT[r.dong]+' '+LINE_YINYANG(yinyang)+'</div></div>';
+
+  html+='<div class="block"><h3><span class="num">分类取读</span>'+STATE.cat+'</h3>'
+      +'<div class="body">'+categoryReading(STATE.cat, ben, ty, r.dong)+'</div></div>';
+
+  html+='<div class="block" style="border-color:var(--accent-border);background:var(--accent-soft)"><h3><span class="num">心镜回照</span>落到一处</h3>'
+      +'<div class="body">'+mirrorAction(STATE.cat, ty)+'</div></div>';
+
+  html+='<div class="center"><span class="params">'+paramHTML+'</span></div>';
+
+  $('#result').innerHTML=html;
+}
+</script>
+</body>
+</html>
