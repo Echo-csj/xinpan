@@ -144,6 +144,35 @@
   .read-item .v{font-size:13.5px;color:var(--text);line-height:1.6;}
   @media(max-width:480px){ .read-grid{grid-template-columns:1fr;} }
 
+  /* 断事落地 / 卦象结构 / 卦簿 */
+  .clue-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;}
+  .clue{border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:var(--panel);}
+  .clue .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--accent);margin-bottom:5px;}
+  .clue .v{font-size:13px;color:var(--text);line-height:1.6;}
+  .mini-h{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--faint);margin:14px 0 8px;}
+  .tag-pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 9px;border-radius:999px;border:1px solid var(--border);color:var(--muted);margin-right:6px;}
+  .tag-pill.on{border-color:var(--accent-border);background:var(--accent-soft);color:var(--accent-press);}
+  .struct-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;}
+  .struct-chip{flex:1;min-width:150px;border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:var(--panel);}
+  .struct-chip .k{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:6px;}
+  .struct-chip .v{font-size:14px;font-weight:500;}
+  .struct-chip .d{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5;}
+  .book-bar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;}
+  .book-stat{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .book-stat b{color:var(--accent-press);font-weight:500;}
+  .rec{border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;background:var(--panel);}
+  .rec-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;}
+  .rec-q{font-size:14.5px;color:var(--text);font-weight:500;flex:1;min-width:180px;}
+  .rec-meta{font-family:var(--mono);font-size:11px;color:var(--faint);}
+  .rec-gua{font-size:12.5px;color:var(--muted);margin-top:6px;}
+  .rec-act{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .mini-btn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-size:12.5px;color:var(--text);cursor:pointer;transition:all .18s ease;font-family:var(--sans);}
+  .mini-btn:hover{border-color:var(--accent-border);}
+  .mini-btn.hit{border-color:var(--accent-border);background:var(--accent-soft);color:var(--accent-press);}
+  .mini-btn.miss{border-color:#fecaca;background:#fef2f2;color:#b91c1c;}
+  .rec-note{width:100%;margin-top:10px;font-size:13px;}
+  .empty{text-align:center;color:var(--faint);font-size:13px;padding:40px 0;}
+  @media(max-width:480px){ .clue-grid{grid-template-columns:1fr;} }
   .disclaim{
     margin-top:36px;padding-top:20px;border-top:1px solid var(--border);
     font-size:12px;color:var(--faint);line-height:1.7;text-align:center;
@@ -159,6 +188,7 @@
     <div class="mark">XIN · PAN</div>
     <h1>心盘</h1>
     <p>起心动念，借卦观心 · 一枚数字心镜</p>
+    <div style="margin-top:16px;"><button class="mini-btn" id="openBook">打开卦簿 · 复盘应验</button></div>
   </header>
 
   <!-- Step 1: 静心起念 -->
@@ -207,6 +237,18 @@
     </div>
     <div class="actions">
       <button class="btn ghost" id="back1">← 重新想想</button>
+    </div>
+  </section>
+
+  <!-- 卦簿：验证闭环 -->
+  <section id="s4" class="screen">
+    <div class="step-hint"><span class="dot"></span>卦簿 · 起卦留档与复盘</div>
+    <div id="bookList"></div>
+    <div class="actions">
+      <button class="btn ghost" id="bookBack">← 返回起卦</button>
+    </div>
+    <div class="disclaim">
+      卦簿只存在这台设备的浏览器里，不上传、不联网。清理浏览器数据会一并清除——重要复盘请自行截图留存。
     </div>
   </section>
 
@@ -680,11 +722,130 @@ function mirrorActionDeep(cat, ty, month){
   return m[0]+m[1]+'（'+tiW.label+'）';
 }
 
+/* ============ 断事落地：方位 / 颜色 / 数字 / 六亲 ============ */
+const TRI_DIR = {1:'西北',2:'正西',3:'正南',4:'正东',5:'东南',6:'正北',7:'东北',8:'西南'};
+const WU_INFO = {
+  金:{color:'白、金、银', num:'4、9', zhi:'酉', time:'酉时（17–19点）', dir:'正西'},
+  木:{color:'青、绿', num:'3、8', zhi:'卯', time:'卯时（5–7点）', dir:'正东'},
+  水:{color:'黑、蓝', num:'1、6', zhi:'子', time:'子时（23–1点）', dir:'正北'},
+  火:{color:'红、紫、橙', num:'2、7', zhi:'午', time:'午时（11–13点）', dir:'正南'},
+  土:{color:'黄、棕', num:'5、10', zhi:'辰戌丑未', time:'辰戌丑未时', dir:'中央／四方'},
+};
+const LIUQIN_NAME={大吉:'父母',小耗:'子孙',凶:'官鬼',吉:'妻财',平:'兄弟'};
+const LIUQIN_DESC={
+  父母:'生我者——庇护、提携、文书、长辈、靠山',
+  子孙:'我生者——付出、成果、晚辈、享乐、解忧',
+  官鬼:'克我者——压力、制度、上级、风险、病灾',
+  妻财:'我克者——财物、资源、可掌控之事、配偶',
+  兄弟:'同我者——同辈、朋友、同伴、分争',
+};
+const LIUQIN_CAT={
+  感情:{父母:'长辈或介绍人从中牵线，重在名分与承诺',子孙:'子女或你照顾的对象，你付出较多',官鬼:'伴侣本人，亦主关系中的约束与压力',妻财:'你看重的对方与现实条件',兄弟:'朋友同伴，或暗中的竞争者'},
+  事业:{父母:'上级、单位制度、文书合同，或提携你的前辈',子孙:'下属、产品、成果，也主你要付出的精力',官鬼:'领导、规章、考核与压力，宜守规矩',妻财:'薪水、客户、可掌控的资源',兄弟:'同事同行，既有助力也有分争'},
+  财运:{父母:'本金、靠山、票据文书，主稳定来源',子孙:'生财之道、产品与投入，先付出后有回报',官鬼:'税费、风险、监管，主耗财与压力',妻财:'钱财本身，是你可争取的所得',兄弟:'合伙人与分财者，防被人分利'},
+  决策:{父母:'信息与依据，宜多听长辈意见',子孙:'后续收益与代价，先算投入',官鬼:'阻力与规则，硬闯易受损',妻财:'可得的实际利益',兄弟:'同伴与变数，需防意见分歧'},
+};
+function liuqinOf(ty,cat){
+  const name=LIUQIN_NAME[ty.level]||'兄弟';
+  return { name, desc:LIUQIN_DESC[name], catText:(LIUQIN_CAT[cat]||LIUQIN_CAT['决策'])[name] };
+}
+
+/* ============ 应期精算：卦数 × 旺衰倍率，收敛到具体天数 ============ */
+function yingqiPrecise(ty, dong, month){
+  let base, src;
+  if(ty.level==='平'){ base=dong; src='动爻数 '+dong; }
+  else if(ty.level==='大吉'||ty.level==='吉'){ base=ty.yong; src='用卦数 '+ty.yong; }
+  else { base=ty.ti; src='体卦数 '+ty.ti; }
+  const key=wangState(ty.tw,month).key;
+  const factor={旺:1,相:1,休:3,囚:6,死:9}[key]||1;
+  const slow=Math.max(1,Math.round(base*factor));
+  const fast=base;
+  let text;
+  if(key==='旺'||key==='相') text='卦气'+key+'，应期偏快：约 '+fast+' 天内见分晓';
+  else text='卦气'+key+'，应期偏迟：约 '+slow+' 天左右（最快 '+fast+' 天已见苗头）';
+  return { src, key, fast, slow, text:text+'（取'+src+'）' };
+}
+
+/* ============ 方位／颜色／数字落地线索 ============ */
+function landingClues(ty){
+  const yongDir=TRI_DIR[ty.yong]||'—', tiDir=TRI_DIR[ty.ti]||'—';
+  const wi=WU_INFO[ty.yw]||WU_INFO['水'];
+  const good=(ty.level==='大吉'||ty.level==='吉');
+  const bad=(ty.level==='凶'||ty.level==='小耗');
+  const dirLine='这事多从「'+yongDir+'」方来；你安稳之位在「'+tiDir+'」'
+    +(good?'，宜向'+yongDir+'方主动推进':bad?'，宜避'+yongDir+'方的直接冲撞':'，两方皆可从容往来');
+  const objLine='用卦属'+ty.yw+'：应事之色多为「'+wi.color+'」，应数为「'+wi.num+'」，应时多在'+wi.time;
+  return { dirLine, objLine, yongDir, tiDir, wi };
+}
+
+/* ============ 爻际精断：当位 / 比应 / 承乘 / 动爻助孤 ============ */
+function yaoRelations(L, dong){
+  const i=dong-1;
+  const yangPos=[1,0,1,0,1,0];              // 初、三、五为阳位
+  const dang=(L[i]===yangPos[i]);
+  const yingIdx=i<3?i+3:i-3;                 // 初应四、二应五、三应上
+  const ying=(L[i]!==L[yingIdx]);             // 一阴一阳为有应
+  const posName=['初','二','三','四','五','上'][i];
+  let neigh=[];
+  if(i>0){
+    const below=L[i-1];
+    if(L[i]===0 && below===1) neigh.push('下承阳（阴承阳为顺，得助）');
+    else if(L[i]===1 && below===0) neigh.push('下有阴承你（得助）');
+    else neigh.push('与下爻同性，少承助之力');
+  }
+  if(i<5){
+    const above=L[i+1];
+    if(L[i]===0 && above===1) neigh.push('上乘阳（阴乘阳为逆，受压）');
+    else if(L[i]===1 && above===0) neigh.push('上有阴乘你（耗神）');
+    else neigh.push('与上爻同性，无相制相成');
+  }
+  let verdict;
+  if(dang&&ying) verdict='动爻'+posName+'当位又有应——动而有据，力量不弱，可放心作为。';
+  else if(!dang&&!ying) verdict='动爻'+posName+'失位又无应——孤立少援，动则费力，宜借势不宜强为。';
+  else if(dang) verdict='动爻'+posName+'当位但无应——自身站稳，外援不足，宜稳扎稳打。';
+  else verdict='动爻'+posName+'有应但失位——有人呼应，位置未稳，宜先正其位再动。';
+  return { dang, ying, posName, text:verdict+' '+neigh.join('；')+'。' };
+}
+
+/* ============ 卦象结构：错卦（反面隐患）/ 综卦（换位视角） ============ */
+function structGua(L){
+  const cuoL=L.map(x=>1-x);                  // 六爻全反 = 错卦
+  const cuo=findHex(
+    trigramFromBinary([cuoL[3],cuoL[4],cuoL[5]]),
+    trigramFromBinary([cuoL[0],cuoL[1],cuoL[2]])
+  );
+  const zongL=L.slice().reverse();           // 六爻颠转 = 综卦
+  const zong=findHex(
+    trigramFromBinary([zongL[3],zongL[4],zongL[5]]),
+    trigramFromBinary([zongL[0],zongL[1],zongL[2]])
+  );
+  return { cuo, zong };
+}
+
+/* ============ 验证闭环：本地卦簿（localStorage，失败自动降级） ============ */
+const Store={
+  KEY:'xinpan_records_v1',
+  ok(){ try{ const t='__xp_probe__'; localStorage.setItem(t,'1'); localStorage.removeItem(t); return true; }catch(e){ return false; } },
+  all(){ try{ const s=localStorage.getItem(this.KEY); const a=s?JSON.parse(s):[]; return Array.isArray(a)?a:[]; }catch(e){ return []; } },
+  add(r){ try{ const a=this.all(); a.unshift(r); localStorage.setItem(this.KEY,JSON.stringify(a.slice(0,300))); return true; }catch(e){ return false; } },
+  set(id,patch){ try{ const a=this.all(); const x=a.find(v=>v.id===id); if(!x) return false; Object.assign(x,patch); localStorage.setItem(this.KEY,JSON.stringify(a)); return true; }catch(e){ return false; } },
+  del(id){ try{ localStorage.setItem(this.KEY,JSON.stringify(this.all().filter(v=>v.id!==id))); return true; }catch(e){ return false; } },
+  clear(){ try{ localStorage.removeItem(this.KEY); return true; }catch(e){ return false; } },
+  stats(){ const a=this.all(); const done=a.filter(x=>x.status!=='pending'); const hit=done.filter(x=>x.status==='hit'); return {total:a.length, done:done.length, hit:hit.length, rate:done.length?Math.round(hit.length/done.length*100):null}; }
+};
+function newRecord(meta){
+  return Object.assign({
+    id:'r'+Date.now()+Math.random().toString(36).slice(2,7),
+    ts:Date.now(),
+    status:'pending', note:'', reviewTs:0
+  }, meta);
+}
+
 /* ============ 主流程 ============ */
 let STATE={cat:'感情', mode:'time'};
 
 const $=s=>document.querySelector(s);
-const screens=['s1','s2','s3'];
+const screens=['s1','s2','s3','s4'];
 function show(id){ screens.forEach(s=>$('#'+s).classList.toggle('active', s===id)); window.scrollTo(0,0); }
 
 // chips
@@ -716,6 +877,8 @@ $('#toCast').addEventListener('click',()=>{
 $('#back1').addEventListener('click',()=>show('s1'));
 $('#back2').addEventListener('click',()=>show('s2'));
 $('#restart').addEventListener('click',()=>{ $('#qtext').value=''; show('s1'); });
+$('#openBook').addEventListener('click',()=>{ renderBook(); show('s4'); });
+$('#bookBack').addEventListener('click',()=>show('s1'));
 
 $('#castBtn').addEventListener('click',()=>{
   if(STATE.mode==='draw'){
@@ -806,14 +969,51 @@ function render(r){
       +'<div class="body">'+dr.bianHua+'</div></div>';
 
   const hints=yaoKeyHints(yaoText);
+  const yqp=yingqiPrecise(ty, r.dong, monthNow);
   html+='<div class="block"><h3><span class="num">应期</span>何时见分晓</h3>'
-      +'<div class="body">'+dr.yq.text+'</div>'
+      +'<div class="body">'+yqp.text+'（'+yqp.src+'起数，'+(yqp.key==='旺'||yqp.key==='相'?'卦气旺相故速':'卦气休囚故迟')+'）。</div>'
+      +'<div class="sub">取数依据：'+dr.yq.text+'</div>'
       +(hints.length?'<div class="sub">动爻关键词：'+hints.join(' ')+'</div>':'')+'</div>';
+
+  // ===== 断事落地：把卦象翻成人、事、时、方 =====
+  const lq=liuqinOf(ty, STATE.cat), clues=landingClues(ty);
+  html+='<div class="block"><h3><span class="num">断事落地</span>人 · 事 · 时 · 方</h3>'
+      +'<div class="body">六亲取象：<b>'+lq.name+'</b>——'+lq.desc+'。就你所问：'+lq.catText+'。</div>'
+      +'<div class="clue-grid">'
+      +'<div class="clue"><div class="k">方位</div><div class="v">'+clues.dirLine+'</div></div>'
+      +'<div class="clue"><div class="k">色 · 数 · 时</div><div class="v">'+clues.objLine+'</div></div>'
+      +'</div></div>';
+
+  // ===== 爻际精断：当位 / 比应 / 承乘 =====
+  const yr=yaoRelations(benL, r.dong);
+  html+='<div class="block"><h3><span class="num">爻际精断</span>这一动爻的处境</h3>'
+      +'<div class="body">'+yr.text+'</div>'
+      +'<div class="sub">当位：'+(yr.dang?'是':'否')+'　有应：'+(yr.ying?'是':'否')+'（动爻与相隔三位的爻为「应」）</div></div>';
+
+  // ===== 卦象结构：错卦（隐患）/ 综卦（换位），象数拓展 =====
+  const sg=structGua(benL);
+  html+='<div class="block"><h3><span class="num">卦象结构</span>错卦与综卦</h3>'
+      +'<div class="struct-row">'
+      +'<div class="struct-chip"><div class="k">错卦 · 反面隐患</div><div class="v">'+sg.cuo.name+'</div><div class="d">'+sg.cuo.xiang+'</div></div>'
+      +'<div class="struct-chip"><div class="k">综卦 · 换位视角</div><div class="v">'+sg.zong.name+'</div><div class="d">'+sg.zong.xiang+'</div></div>'
+      +'</div>'
+      +'<div class="sub">错卦（六爻全反）提示事情的反面与隐患；综卦（上下颠倒）是从对方／另一角度看同一件事。此属《周易》象数拓展，非梅花正统。</div></div>';
 
   html+='<div class="block" style="border-color:var(--accent-border);background:var(--accent-soft)"><h3><span class="num">心镜回照</span>落到一处</h3>'
       +'<div class="body">'+mirrorActionDeep(STATE.cat, ty, monthNow)+'</div></div>';
 
   html+='<div class="center"><span class="params">'+paramHTML+'</span></div>';
+
+  // ===== 自动存入卦簿（验证闭环） =====
+  if(Store.ok()){
+    const qEl=$('#qtext');
+    Store.add(newRecord({
+      q: qEl && qEl.value ? qEl.value.trim() : '',
+      kind:'hex', cat:STATE.cat,
+      gua: ben.name+'·'+dongName+'爻动·'+ch.name,
+      level:ty.level, digest:ty.txt, method:r.method
+    }));
+  }
 
   $('#result').innerHTML=html;
 }
@@ -850,8 +1050,87 @@ function renderDraw(r){
 
   html+='<div class="center"><span class="params">灵签 · 默念所问后随机求得 · 仅供启迪</span></div>';
 
+  if(Store.ok()){
+    const qEl=$('#qtext');
+    Store.add(newRecord({
+      q: qEl && qEl.value ? qEl.value.trim() : '',
+      kind:'draw', cat:STATE.cat,
+      gua: gradeText+' · '+sg.title+'（第'+(r.index+1)+'签）',
+      level:sg.grade, digest:sg.action, method:'draw'
+    }));
+  }
+
   $('#result').innerHTML=html;
 }
+
+/* ============ 验证闭环：卦簿界面 ============ */
+function fmtDate(ts){
+  const d=new Date(ts);
+  const p=n=>String(n).padStart(2,'0');
+  return (d.getMonth()+1)+'月'+d.getDate()+'日 '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function renderBook(){
+  if(!Store.ok()){
+    $('#bookList').innerHTML='<div class="empty">当前浏览器不支持本地存储，卦簿不可用。<br/>（通常是隐私模式导致）</div>';
+    return;
+  }
+  const recs=Store.all(), st=Store.stats();
+  let html='';
+  html+='<div class="book-bar"><div class="book-stat">共 <b>'+st.total+'</b> 次起卦 · 已复盘 <b>'+st.done+'</b> · 应验 <b>'+st.hit+'</b>'
+      +(st.rate!==null?' · 应验率 <b>'+st.rate+'%</b>':'')+'</div>'
+      +(st.total?'<button class="mini-btn" id="bookClear">清空卦簿</button>':'')+'</div>';
+
+  if(!recs.length){
+    html+='<div class="empty">卦簿还是空的。<br/>起一卦后会自动留档，日后再回来标记应验与否。</div>';
+    $('#bookList').innerHTML=html;
+    return;
+  }
+
+  recs.forEach(rec=>{
+    const q=rec.q||'（未写下问题）';
+    const catLabel={感情:'感情',事业:'事业',财运:'财运',决策:'决策'}[rec.cat]||rec.cat||'—';
+    const statusPill=rec.status==='hit'?'<span class="tag-pill on">已应验</span>':rec.status==='miss'?'<span class="tag-pill">未应验</span>':'<span class="tag-pill">待复盘</span>';
+    html+='<div class="rec" data-id="'+rec.id+'">'
+        +'<div class="rec-head"><div class="rec-q">'+escapeHTML(q)+'</div><div class="rec-meta">'+fmtDate(rec.ts)+'</div></div>'
+        +'<div class="rec-gua"><span class="tag-pill">'+catLabel+'</span>'+statusPill+escapeHTML(rec.gua||'')+'</div>'
+        +'<div class="rec-gua">'+escapeHTML(rec.digest||'')+'</div>'
+        +'<div class="rec-act">'
+        +'<button class="mini-btn '+(rec.status==='hit'?'hit':'')+'" data-act="hit">应验</button>'
+        +'<button class="mini-btn '+(rec.status==='miss'?'miss':'')+'" data-act="miss">未验</button>'
+        +'<button class="mini-btn" data-act="pending">撤销</button>'
+        +'<button class="mini-btn" data-act="del">删除</button>'
+        +'</div>'
+        +(rec.note?'<div class="rec-gua" style="margin-top:8px;">复盘：'+escapeHTML(rec.note)+'</div>':'')
+        +'<textarea class="rec-note" rows="2" placeholder="日后回看：当时断得准吗？记下一句复盘…" data-role="note">'+escapeHTML(rec.note||'')+'</textarea>'
+        +'</div>';
+  });
+  $('#bookList').innerHTML=html;
+}
+function escapeHTML(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// 卦簿交互（事件委托）
+$('#bookList').addEventListener('click',e=>{
+  const btn=e.target.closest('.mini-btn'); if(!btn) return;
+  if(btn.id==='bookClear'){
+    if(window.confirm && confirm('确定清空整本卦簿？此操作不可撤销。')){ Store.clear(); renderBook(); }
+    return;
+  }
+  const rec=btn.closest('.rec'); if(!rec) return;
+  const id=rec.dataset.id, act=btn.dataset.act;
+  if(act==='del'){ Store.del(id); renderBook(); return; }
+  if(act==='hit'||act==='miss'||act==='pending'){
+    const patch={status:act, reviewTs:Date.now()};
+    const noteEl=rec.querySelector('[data-role=note]');
+    if(noteEl) patch.note=noteEl.value;
+    Store.set(id,patch); renderBook(); return;
+  }
+});
+$('#bookList').addEventListener('change',e=>{
+  if(e.target.dataset && e.target.dataset.role==='note'){
+    const rec=e.target.closest('.rec');
+    if(rec) Store.set(rec.dataset.id,{note:e.target.value});
+  }
+});
 
 </script>
 </body>
