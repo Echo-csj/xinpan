@@ -134,7 +134,25 @@
   .view{display:flex;gap:10px;align-items:flex-start;font-size:12.8px;line-height:1.6;}
   .view .k{flex:0 0 58px;font-size:11.5px;font-family:var(--mono);color:var(--accent-press);padding-top:1px;}
   .view .v{flex:1;color:var(--muted);}
-  @media(max-width:768px){.two-face{grid-template-columns:1fr;}}
+  /* 就你这一问：问题关联解辞 */
+  .qfocus{border:1px solid var(--accent-border);background:var(--accent-soft);border-radius:10px;padding:13px 15px;margin:2px 0 15px;}
+  .qf-head{font-size:12px;font-family:var(--mono);letter-spacing:.05em;color:var(--accent-press);font-weight:600;margin-bottom:9px;}
+  .qf-en{font-family:inherit;font-weight:400;color:var(--muted);letter-spacing:0;}
+  .qf-ask{font-size:13.5px;color:var(--text);line-height:1.6;background:#fff;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 7px 7px 0;padding:9px 12px;word-break:break-word;}
+  .qf-tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+  .qf-tag{font-size:11px;font-family:var(--mono);color:var(--accent-press);background:#fff;border:1px solid var(--accent-border);border-radius:999px;padding:2px 9px;}
+  .qf-lines{display:flex;flex-direction:column;gap:7px;margin:10px 0 12px;}
+  .qline{display:flex;gap:10px;align-items:flex-start;font-size:12.8px;line-height:1.6;}
+  .qline .k{flex:0 0 20px;height:20px;line-height:20px;text-align:center;font-family:var(--mono);font-size:11px;color:#fff;background:var(--accent);border-radius:5px;}
+  .qline .v{flex:1;color:var(--text);}
+  .qf-two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .qf-two .face{background:#fff;}
+  .qf-angles{display:flex;flex-direction:column;gap:7px;border-top:1px dashed var(--accent-border);padding-top:11px;}
+  .qangle{display:flex;gap:10px;align-items:flex-start;font-size:12.6px;line-height:1.6;}
+  .qangle .k{flex:0 0 68px;font-size:11.5px;font-family:var(--mono);color:var(--accent-press);}
+  .qangle .v{flex:1;color:var(--muted);}
+  .qf-empty .note{font-size:12.6px;color:var(--muted);line-height:1.7;}
+  @media(max-width:768px){.two-face{grid-template-columns:1fr;}.qf-two{grid-template-columns:1fr;}}
   .tuan{font-family:"Songti SC","STSong",serif;font-size:15px;color:#3f3f46;letter-spacing:.02em;}
 
   .params{font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--panel-2);border-radius:8px;padding:10px 14px;display:inline-block;}
@@ -578,13 +596,107 @@ const PLAIN={
 64:{p:'未济是「事情还没成」——渡河没渡完，小狐狸尾巴沾湿了。说白了：这局是差一口气、还在路上。但卦辞说「亨」——有希望、能通。关键是慎终如始——越到最后越要谨慎，别在快成功时松劲。',good:'「亨」——虽然还没成，但势头是通的，只要坚持谨慎地走，终能成功。',bad:'「濡其尾，无攸利」——快到岸时大意、发力过猛或后继无力，沾湿了尾巴，功亏一篑。',v:['顺境看：快成了别松劲，未济的成败就在最后一步。','逆境看：还没成不代表不成，你正在路上，坚持住就有希望。','行动看：慎终如始、稳住最后一步，越接近成功越要小心。']}
 };
 
-/* 白话解辞渲染：保留原卦辞，另起一块——大白话 + 两面看 + 三视角 */
-function plainBlock(ben){
+/* ===== 问题关联解辞工具：从用户这一问抽取 对象 / 时间窗 / 抉择 ===== */
+function qEscape(s){ return escapeHTML(String(s==null?'':s)); }
+function parseQuestion(q){
+  const s=String(q||'').trim();
+  const objRules=[
+    [/(前任|前男友|前女友)/,'前任'],
+    [/(男朋友|女朋友|男友|女友|对象|伴侣|恋人)/,'对方'],
+    [/(老公|老婆|丈夫|妻子|另一半|配偶)/,'另一半'],
+    [/(老板|领导|上司|主管)/,'领导'],
+    [/(同事|搭档|合作方|合伙人)/,'合作方'],
+    [/(客户|甲方)/,'客户'],
+    [/(孩子|儿子|女儿|宝宝|小孩)/,'孩子'],
+    [/(父母|爸妈|妈妈|爸爸|家人)/,'家人'],
+    [/(老师|导师|教授)/,'老师']
+  ];
+  let obj='';
+  for(let i=0;i<objRules.length;i++){ if(objRules[i][0].test(s)){ obj=objRules[i][1]; break; } }
+  const timeRules=[
+    /(明年|后年|今年)/,/(下个月|这个月|本月|次月)/,/(下周|这周|本周|近一周)/,
+    /(年底|年中|年初)/,/(三个月|半年|一年|三年|两年)/,/(最近|近期|眼下|当前|目前)/,/(几天|一周|两周|一个月)/
+  ];
+  let time='';
+  for(let i=0;i<timeRules.length;i++){ const m=s.match(timeRules[i]); if(m){ time=m[0]; break; } }
+  const isChoice=/要不要|该不该|选哪个|哪个更好|二选一|去还是|留还是|走还是|做不做|值不值得|能不能|该走该留|还是|或者/.test(s);
+  return { raw:s, obj:obj, time:time, isChoice:isChoice, has:s.length>0 };
+}
+function qLevel(ty){ return (ty && ty.level) || '平'; }
+function qForceText(cat, ty, obj){
+  const who=obj||({感情:'这段关系',事业:'这件事',财运:'这笔钱',决策:'这个选择'}[cat]||'这件事');
+  const m={
+    大吉:'外力顺着你，'+who+'这件事有助推，可以主动出击、别客气',
+    吉:'主动权在你手里，'+who+'你能拿住，但得一步步用心推进',
+    平:who+'这事眼下不咸不淡，稳着来、少折腾反而最好',
+    小耗:who+'这事要你先投入、多担待，回报在后头，别急着算账',
+    凶:who+'这事阻力偏大，硬推容易碰壁，宜守不宜攻'
+  };
+  return m[qLevel(ty)]||m['平'];
+}
+function qChangeText(dongName, ben, ch, hu){
+  const b=(ben&&ben.name)||'本卦', c=(ch&&ch.name)||'变卦', h=(hu&&hu.name)||'互卦';
+  const x=(ch&&ch.xiang)?('——'+ch.xiang):'';
+  return (dongName||'动')+'爻一动，事情从「'+b+'」往「'+c+'」走，中途还要过一道「'+h+'」'+x+'。';
+}
+function qTimeText(yqp, time){
+  const core=(yqp && yqp.text)?yqp.text.replace(/（[^）]*）/g,''):'事缓则圆，静待其变';
+  let t='应期上看，'+core+'。';
+  if(time){ t+='你自己提到「'+qEscape(time)+'」，就把它当个观察窗口，到点回头对照这卦。'; }
+  return t;
+}
+function qAngles(cat, ty, obj){
+  const selfMap={大吉:'你状态在线，敢争敢要就有',吉:'你能主导，节奏握在你手里',平:'你别急，稳住就是赢',小耗:'你得多付出，注意别透支',凶:'你先收着，别硬扛'};
+  const otherMap={大吉:'对方那边态度积极，顺着推就行',吉:'对方吃软不吃硬，好好说能通',平:'对方没明牌，先别替他下结论',小耗:'对方要你多让一步，先摸清底细',凶:'对方这会儿不太配合，别急着逼'};
+  const actMap={大吉:'今天就落一小步，趁势把事定了',吉:'把最关键那一环敲定，别拖',平:'先观察，看清楚再动',小耗:'先算清成本再动手，别打肿脸',凶:'今天做减法：暂缓、收回、不回应'};
+  const L=qLevel(ty);
+  const arr=[['你这边', selfMap[L]||selfMap['平']]];
+  if(obj) arr.push([obj+'那边', otherMap[L]||otherMap['平']]);
+  arr.push(['行动上', actMap[L]||actMap['平']]);
+  return arr;
+}
+
+/* 白话解辞渲染：保留原卦辞，另起一块——大白话 + 两面看 + 三视角；并把卦意对着用户具体一问说出来 */
+function plainBlock(ben, q, ctx){
   const d=PLAIN[ben.n]; if(!d) return '';
   const VN=['顺境看','逆境看','行动看'];
   let views='';
   d.v.forEach((t,i)=>{ views+='<div class="view"><span class="k">'+VN[i]+'</span><span class="v">'+t+'</span></div>'; });
+
+  // ===== 就你这一问：把卦意对着用户的具体问题说出来 =====
+  const P=parseQuestion(q), c=ctx||{};
+  let qHtml;
+  if(P.has){
+    const tags=[];
+    if(P.obj) tags.push('对象 · '+qEscape(P.obj));
+    if(P.time) tags.push('时间 · '+qEscape(P.time));
+    if(P.isChoice) tags.push('这是一道选择题');
+    let angleHtml='';
+    qAngles(c.cat, c.ty, P.obj).forEach(function(a){
+      angleHtml+='<div class="qangle"><span class="k">'+a[0]+'</span><span class="v">'+a[1]+'</span></div>';
+    });
+    qHtml='<div class="qfocus">'
+      +'<div class="qf-head">就你这一问<span class="qf-en"> / 下面照着这件事说，不是通用卦辞</span></div>'
+      +'<div class="qf-ask">「'+qEscape(P.raw)+'」</div>'
+      +(tags.length?'<div class="qf-tags">'+tags.map(function(t){return '<span class="qf-tag">'+t+'</span>';}).join('')+'</div>':'')
+      +'<div class="qf-lines">'
+        +'<div class="qline"><span class="k">势</span><span class="v">'+qForceText(c.cat, c.ty, P.obj)+'</span></div>'
+        +'<div class="qline"><span class="k">变</span><span class="v">'+qChangeText(c.dongName, ben, c.ch, c.hu)+'</span></div>'
+        +'<div class="qline"><span class="k">时</span><span class="v">'+qTimeText(c.yqp, P.time)+'</span></div>'
+      +'</div>'
+      +'<div class="qf-two">'
+        +'<div class="face good"><div class="k">成的面 · 对着你这件事</div><div class="v">'+d.good+(P.isChoice?' 几个选项里，顺着卦势走的那一个更省力。':' 往这个方向使劲，更容易成。')+'</div></div>'
+        +'<div class="face bad"><div class="k">坑的面 · 对着你这件事</div><div class="v">'+d.bad+(P.obj?' 尤其别把'+qEscape(P.obj)+'的反应全押在这一件事上。':' 别在这时候情绪化加码。')+'</div></div>'
+      +'</div>'
+      +'<div class="qf-angles">'+angleHtml+'</div>'
+    +'</div>';
+  } else {
+    qHtml='<div class="qfocus qf-empty"><div class="qf-head">就你这一问</div>'
+      +'<div class="note">你这次没写下具体问题，这里先按卦意作一般观照。起卦前补一句「谁、什么事、什么时间、纠结什么」，解辞会更贴身。</div></div>';
+  }
+
   return '<div class="block"><h3><span class="num">白话解辞</span>把这卦说成人话 · 正反两面看</h3>'
+    +qHtml
     +'<div class="plain-say"><b>大白话</b>'+d.p+'</div>'
     +'<div class="two-face">'
       +'<div class="face good"><div class="k">正面 · 机会在哪</div><div class="v">'+d.good+'</div></div>'
@@ -1211,10 +1323,15 @@ function render(r){
       +'<div class="body tuan">'+ben.tuan+'</div>'
       +'<div class="sub">'+ben.xiang+'</div></div>';
 
-  // ===== 白话解辞：大白话 + 正反两面 + 顺/逆/行三视角（叠加，原卦辞不动）=====
-  html+=plainBlock(ben);
-
+  // ===== 白话解辞 + 就你这一问：问题关联解读（原卦辞与通用白话全保留）=====
+  const qEl0=$('#qtext');
+  const qText0=qEl0 && qEl0.value ? qEl0.value.trim() : '';
   const yaoText=YAO[ben.n][r.dong-1];
+  const yqp=yingqiPrecise(ty, r.dong, monthNow);
+  html+=plainBlock(ben, qText0, {
+    cat:STATE.cat, ty:ty, dong:r.dong, dongName:dongName,
+    ben:ben, hu:hu, ch:ch, month:monthNow, yaoText:yaoText, yqp:yqp
+  });
   html+='<div class="block"><h3><span class="num">动爻</span>'+dongName+'爻动 · 变入 '+ch.name+'</h3>'
       +'<div class="body tuan" style="font-size:15px;margin-bottom:8px;">'+yaoText+'</div>'
       +'<div class="sub">'+POS_TXT[r.dong]+' '+LINE_YINYANG(yinyang)+'</div></div>';
@@ -1237,7 +1354,6 @@ function render(r){
       +'<div class="body">'+dr.bianHua+'</div></div>';
 
   const hints=yaoKeyHints(yaoText);
-  const yqp=yingqiPrecise(ty, r.dong, monthNow);
   html+='<div class="block"><h3><span class="num">应期</span>何时见分晓</h3>'
       +'<div class="body">'+yqp.text+'（'+yqp.src+'起数，'+(yqp.key==='旺'||yqp.key==='相'?'卦气旺相故速':'卦气休囚故迟')+'）。</div>'
       +'<div class="sub">取数依据：'+dr.yq.text+'</div>'
