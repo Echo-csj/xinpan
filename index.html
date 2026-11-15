@@ -180,6 +180,30 @@
   .actions{display:flex;gap:12px;margin-top:30px;}
   .actions .btn{flex:1;}
   .note{font-size:12px;color:var(--faint);margin-top:10px;}
+
+  /* 提问质量引导 */
+  .ask-guide{border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);margin:-14px 0 28px;overflow:hidden;}
+  .ag-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;cursor:pointer;}
+  .ag-head:hover{background:var(--panel-2);}
+  .ag-title{font-size:12.5px;color:var(--text);font-weight:500;}
+  .ag-toggle{font-family:var(--mono);font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;letter-spacing:.04em;}
+  .ag-body{padding:0 14px 14px;}
+  .ag-body.hide{display:none;}
+  .ag-rules{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;border-top:1px solid var(--border);padding-top:12px;}
+  .ag-rule{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);line-height:1.45;}
+  .ag-rule b{font-size:12px;color:var(--text);font-weight:600;}
+  .ag-eg{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px;}
+  .ag-eg-row{display:flex;gap:10px;align-items:flex-start;font-size:12px;line-height:1.5;}
+  .ag-eg-row .k{flex:0 0 62px;font-family:var(--mono);font-size:11px;}
+  .ag-eg-row.good .k{color:var(--accent-press);}
+  .ag-eg-row.bad .k{color:#b91c1c;}
+  .ag-eg-row .v{color:var(--muted);}
+  .ag-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .ag-actions .mini-btn{font-size:11.5px;padding:5px 10px;}
+  @media(max-width:768px){.ag-rules{grid-template-columns:1fr;}}
+  .lon-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .lon-row input[type=number]{max-width:200px;font-family:var(--mono);}
+  .lon-row .note{margin:0;flex:1;min-width:180px;}
 </style>
 </head>
 <body>
@@ -207,7 +231,32 @@
 
     <div class="group">
       <label>把问题在心里默念清楚（可写下来，也可只放在心里）</label>
-      <textarea id="qtext" rows="2" placeholder="例：这段关系接下来会如何发展？ / 这个机会该不该接？"></textarea>
+      <textarea id="qtext" rows="2" placeholder="例：这段关系未来三个月会如何发展？ / 这个机会该不该接？"></textarea>
+    </div>
+
+    <div class="ask-guide">
+      <div class="ag-head" id="agToggle">
+        <span class="ag-title">问得越聚焦，卦象照得越清 · 四条提问要领</span>
+        <button class="ag-toggle" type="button" id="agToggleBtn">收起</button>
+      </div>
+      <div class="ag-body" id="agBody">
+        <div class="ag-rules">
+          <div class="ag-rule"><b>① 一个对象</b><span>只问一个人 / 一件事，不混问</span></div>
+          <div class="ag-rule"><b>② 一段时间</b><span>写清「三个月内 / 今年 / 月底前」</span></div>
+          <div class="ag-rule"><b>③ 一个抉择</b><span>落到「要不要 / 该如何」，卦才有着力点</span></div>
+          <div class="ag-rule"><b>④ 勿一问多事</b><span>感情事业财运一起问，卦象会散</span></div>
+        </div>
+        <div class="ag-eg">
+          <div class="ag-eg-row good"><span class="k">好问法</span><span class="v">「这段关系未来三个月会怎么走？我该主动，还是先守？」</span></div>
+          <div class="ag-eg-row bad"><span class="k">散问法</span><span class="v">「我的感情、工作、财运今年会怎样？」</span></div>
+        </div>
+        <div class="ag-actions">
+          <button class="mini-btn" type="button" id="agTplLove">套用 · 感情</button>
+          <button class="mini-btn" type="button" id="agTplWork">套用 · 事业</button>
+          <button class="mini-btn" type="button" id="agTplMoney">套用 · 财运</button>
+          <button class="mini-btn" type="button" id="agTplChoice">套用 · 决策</button>
+        </div>
+      </div>
     </div>
 
     <div class="group">
@@ -220,6 +269,14 @@
       <div id="numInputs" class="numrow" style="display:none;margin-top:14px;">
         <div><label>第一个数</label><input type="number" id="numA" placeholder="如 7" /></div>
         <div><label>第二个数</label><input type="number" id="numB" placeholder="如 23" /></div>
+      </div>
+    </div>
+
+    <div class="group" style="margin-bottom:22px;">
+      <label>真太阳时校正（可选 · 默认东经 120°）</label>
+      <div class="lon-row">
+        <input type="number" id="lonInput" placeholder="东经度数，如 116 北京 / 121 上海" />
+        <span class="note">仅当起卦时刻恰在时辰交界前后才有影响；不确定就留空，按东经 120° 计。</span>
       </div>
     </div>
 
@@ -498,27 +555,112 @@ const POS_TXT={
 };
 const LINE_YINYANG = y => y===1 ? '此爻阳刚，主主动作为、向前一步。' : '此爻阴柔，主静守待时、以柔化之。';
 
+/* ============ 严格历法：农历 / 干支 / 节气月令 / 真太阳时 ============
+   农历年月日：浏览器内置 Intl 'zh-CN-u-ca-chinese'，零依赖、自动处理闰月；
+   干支年：以立春换岁（命理通例），与节气月令体系自洽；
+   节气月令：太阳黄经近似算法（误差约 20 分钟，取日期级定旺衰足够）；
+   真太阳时：以北京时间基准东经 120° 为默认，可用 STATE.lon 覆盖。
+*/
+const TIANGAN=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const JIEQI_ZHI=['寅','卯','辰','巳','午','未','申','酉','戌','亥','子','丑'];
+const LUNAR_MONTHS={'正月':1,'一月':1,'二月':2,'三月':3,'四月':4,'五月':5,'六月':6,'七月':7,'八月':8,'九月':9,'十月':10,'冬月':11,'十一月':11,'腊月':12,'十二月':12};
+const J2000=2451545.0;
+function julianDay(y,m,d,h){
+  h=(h===undefined?12:h);
+  if(m<=2){ y-=1; m+=12; }
+  const A=Math.floor(y/100), B=2-A+Math.floor(A/4);
+  return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(m+1))+d+B-1524.5+(h-12)/24;
+}
+function sunLongitude(jd){
+  const n=jd-J2000;
+  const L=(280.460+0.9856474*n)%360;
+  const g=(357.528+0.9856003*n)%360*Math.PI/180;
+  const lam=L+1.915*Math.sin(g)+0.020*Math.sin(2*g);
+  return (lam%360+360)%360;
+}
+function termJD(year,deg,baseMonth){
+  let lo=julianDay(year,baseMonth,1,0), hi=julianDay(year,baseMonth,16,0);
+  for(let i=0;i<40;i++){
+    const mid=(lo+hi)/2;
+    const diff=((sunLongitude(mid)-deg+540)%360)-180;
+    if(diff<0) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+function jdToDate(jd){ return new Date((jd-2440587.5)*86400000); }
+function lunarInfo(date){
+  try{
+    const f=new Intl.DateTimeFormat('zh-CN-u-ca-chinese',{year:'numeric',month:'numeric',day:'numeric'});
+    const parts=f.formatToParts(date);
+    const get=t=>{const p=parts.find(x=>x.type===t);return p?p.value:null;};
+    return {year:parseInt(get('relatedYear'),10)||date.getFullYear(), monthText:get('month'), day:parseInt(get('day'),10)||date.getDate()};
+  }catch(e){ return null; }
+}
+function lunarMonthNum(mt){
+  if(!mt) return null;
+  const clean=String(mt).replace(/^闰/,'');
+  if(LUNAR_MONTHS[clean]) return LUNAR_MONTHS[clean];
+  const n=parseInt(clean,10);
+  return isNaN(n)?null:n;
+}
+function ganZhiYear(date){
+  const jd=julianDay(date.getFullYear(),date.getMonth()+1,date.getDate(),date.getHours()+date.getMinutes()/60);
+  const lichun=termJD(date.getFullYear(),315,2);
+  const y=jd<lichun?date.getFullYear()-1:date.getFullYear();
+  const idx=((y-4)%60+60)%60;
+  return {gan:TIANGAN[idx%10], zhi:BRANCH[idx%12], zhiIdx:idx%12, year:y};
+}
+function solarTermMonth(date){
+  const jd=julianDay(date.getFullYear(),date.getMonth()+1,date.getDate(),date.getHours()+date.getMinutes()/60);
+  const lam=sunLongitude(jd);
+  const idx=Math.floor((((lam-315)%360)+360)%360/30)%12;
+  return {num:idx+1, zhi:JIEQI_ZHI[idx], wu:SEASON_WU[idx+1]};
+}
+function equationOfTime(date){
+  const start=Date.UTC(date.getFullYear(),0,1);
+  const N=Math.floor((date.getTime()-start)/86400000)+1;
+  const B=2*Math.PI*(N-81)/365;
+  return 9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B);
+}
+function trueSolarTime(date,longitude){
+  const lon=(longitude===undefined||longitude===null||isNaN(longitude))?120:longitude;
+  const t=date.getTime()+(equationOfTime(date)+(lon-120)*4)*60000;
+  return new Date(t);
+}
+function pad2(n){ return String(n).padStart(2,'0'); }
+
 /* ============ 起卦 ============ */
 function castTime(date){
-  const y=date.getFullYear(), m=date.getMonth()+1, d=date.getDate(), h=date.getHours();
-  const yearZhi=((y-4)%12+12)%12;            // 0=子
-  const yearNum=yearZhi+1;                    // 1..12
-  const monthNum=m;                           // 1..12
-  const dayNum=d;                             // 1..31
-  let branch=Math.floor((h+1)/2); if(branch===0) branch=12;
-  const hourNum=branch;                       // 1..12
+  const lon=(typeof STATE!=='undefined' && STATE && STATE.lon!=null)?STATE.lon:120;
+  const tst=trueSolarTime(date, lon);                 // 真太阳时
+  const gz=ganZhiYear(date);                          // 干支年（立春换岁）
+  const li=lunarInfo(date);                           // 农历年月日
+  const lunarM=li?(lunarMonthNum(li.monthText)||(date.getMonth()+1)):(date.getMonth()+1);
+  const lunarD=li?li.day:date.getDate();
+  const sh=tst.getHours();
+  // 十二时辰：子=23:00–01:00，丑=01:00–03:00 … 亥=21:00–23:00
+  let branch=Math.floor((sh+1)/2)%12+1;   // 1..12（子=1）
+  const yearNum=gz.zhiIdx+1, monthNum=lunarM, dayNum=lunarD, hourNum=branch;
   const up=trgIdx(yearNum+monthNum+dayNum);
   const down=trgIdx(yearNum+monthNum+dayNum+hourNum);
   const dong=lineIdx(yearNum+monthNum+dayNum+hourNum);
+  const qi=solarTermMonth(date);
   return {
     method:'time',
-    params:{yearZhi:BRANCH[yearZhi], monthNum, dayNum, hourZhi:BRANCH[branch-1]},
+    params:{
+      yearZhi:gz.zhi, ganzhi:gz.gan+gz.zhi, lunarYear:li?li.year:null,
+      monthNum, dayNum, hourZhi:BRANCH[branch-1],
+      monthQi:qi.num, monthQiZhi:qi.zhi, qiWu:qi.wu,
+      clockHour:date.getHours(), solarHour:sh, lon,
+      eot:+equationOfTime(date).toFixed(1)
+    },
     up, down, dong
   };
 }
 function castNum(a,b){
+  const qi=solarTermMonth(new Date());
   const up=trgIdx(a), down=trgIdx(b), dong=lineIdx(a+b);
-  return { method:'num', params:{a,b}, up, down, dong };
+  return { method:'num', params:{a,b,monthQi:qi.num,monthQiZhi:qi.zhi}, up, down, dong };
 }
 
 /* ============ 渲染 ============ */
@@ -597,7 +739,8 @@ const IMAGE = {
 };
 
 /* ============ 五行旺相休囚死（按月令） ============ */
-const SEASON_WU = {2:'木',3:'木',4:'火',5:'火',6:'火',7:'土',8:'金',9:'金',10:'金',11:'水',12:'水',1:'水'};
+/* 节气月令：寅卯木 · 辰土 · 巳午火 · 未土 · 申酉金 · 戌土 · 亥子水 · 丑土 */
+const SEASON_WU = {1:'木',2:'木',3:'土',4:'火',5:'火',6:'土',7:'金',8:'金',9:'土',10:'水',11:'水',12:'土'};
 function wangState(wu, month){
   const sw=SEASON_WU[month]||'水';
   if(wu===sw) return {key:'旺', label:'当令而旺', desc:'得月令之气，力量最强，主事态有力、可主动作为。'};
@@ -842,7 +985,7 @@ function newRecord(meta){
 }
 
 /* ============ 主流程 ============ */
-let STATE={cat:'感情', mode:'time'};
+let STATE={cat:'感情', mode:'time', lon:120};
 
 const $=s=>document.querySelector(s);
 const screens=['s1','s2','s3','s4'];
@@ -869,9 +1012,33 @@ $('#toCast').addEventListener('click',()=>{
   } else if(STATE.mode==='draw'){
     $('#castNote').textContent='静心默念你所问之事，落签一刻即得——同一问题勿反复求签。';
   } else {
-    $('#castNote').textContent='将捕获此刻的时辰（年支·月数·日数·时辰）起卦——简化版，非严格农历干支。';
+    const lonTxt=(STATE.lon!=null)?('东经'+STATE.lon+'°'):'东经120°基准';
+    $('#castNote').textContent='将按严格历法起卦：农历干支年 · 农历月日 · 节气月令 · 真太阳时（'+lonTxt+'，含均时差校正）。';
   }
   show('s2');
+});
+
+// 提问引导：折叠 + 一键套用聚焦问法
+$('#agToggle').addEventListener('click',()=>{
+  const b=$('#agBody'); if(!b) return;
+  b.classList.toggle('hide');
+  const btn=$('#agToggleBtn'); if(btn) btn.textContent=b.classList.contains('hide')?'展开':'收起';
+});
+const ASK_TPL={
+  agTplLove:'这段关系未来三个月会如何发展？我该主动靠近，还是先守住自己？',
+  agTplWork:'眼前这个工作机会，接下来两个月我该不该接？接了要怎么把握？',
+  agTplMoney:'这笔投入今年内适合做吗？我该进取一些还是保守一些？',
+  agTplChoice:'A 与 B 两条路，未来半年我该选哪条？最需要留意什么？'
+};
+Object.keys(ASK_TPL).forEach(id=>{
+  const el=$('#'+id);
+  if(el) el.addEventListener('click',()=>{ const q=$('#qtext'); if(q){ q.value=ASK_TPL[id]; q.focus(); } });
+});
+// 真太阳时：经度校正（70°E–140°E 覆盖中国全境）
+const lonEl=$('#lonInput');
+if(lonEl) lonEl.addEventListener('input',e=>{
+  const v=parseFloat(e.target.value);
+  STATE.lon=(!isNaN(v)&&v>=70&&v<=140)?v:120;
 });
 
 $('#back1').addEventListener('click',()=>show('s1'));
@@ -917,12 +1084,13 @@ function render(r){
   let paramHTML;
   if(r.method==='time'){
     const p=r.params;
-    paramHTML='起局参数（简化）：'+p.yearZhi+'年支 · 月'+p.monthNum+' · 日'+p.dayNum+' · '+p.hourZhi+'时';
+    const lonTxt=(p.lon!=null && p.lon!==120)?(' · 东经'+p.lon+'°校时'):' · 东经120°基准';
+    paramHTML='起局参数（严格）：'+(p.ganzhi||(p.yearZhi+'年'))+'年（立春换岁）· 农历'+p.monthNum+'月'+p.dayNum+'日 · '+p.hourZhi+'时（真太阳时'+pad2(p.solarHour)+':00／钟表'+pad2(p.clockHour)+':00'+lonTxt+'，均时差'+(p.eot>=0?'+':'')+p.eot+'分）· 节气月令'+p.monthQiZhi+'月';
   } else {
-    paramHTML='报数：'+r.params.a+' / '+r.params.b;
+    paramHTML='报数：'+r.params.a+' / '+r.params.b+' · 节气月令'+(r.params.monthQiZhi||'—')+'月';
   }
   // 卦气（与「体用格局」区统一采用旺相休囚死口径）
-  const monthNow=new Date().getMonth()+1;
+  const monthNow=(r.params && r.params.monthQi) ? r.params.monthQi : solarTermMonth(new Date()).num;
   const qi='月令旺衰：体卦'+wangState(ty.tw,monthNow).label+'，用卦'+wangState(ty.yw,monthNow).label+'。';
 
   const dongName=['初','二','三','四','五','上'][r.dong-1];
