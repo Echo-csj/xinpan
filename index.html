@@ -152,6 +152,9 @@
   .qangle .k{flex:0 0 68px;font-size:11.5px;font-family:var(--mono);color:var(--accent-press);}
   .qangle .v{flex:1;color:var(--muted);}
   .qf-empty .note{font-size:12.6px;color:var(--muted);line-height:1.7;}
+  .qn{margin-top:10px;padding:9px 12px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:12.5px;line-height:1.7;color:var(--text);}
+  .qn b{display:inline-block;font-size:11px;font-family:var(--mono);color:var(--accent-press);background:#fff;border:1px solid var(--accent-border);border-radius:5px;padding:0 6px;margin-right:7px;vertical-align:1px;}
+  .qlead{font-size:12.5px;color:var(--accent-press);background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:6px;padding:6px 10px;margin-bottom:10px;}
   @media(max-width:768px){.two-face{grid-template-columns:1fr;}.qf-two{grid-template-columns:1fr;}}
   .tuan{font-family:"Songti SC","STSong",serif;font-size:15px;color:#3f3f46;letter-spacing:.02em;}
 
@@ -620,8 +623,25 @@ function parseQuestion(q){
   let time='';
   for(let i=0;i<timeRules.length;i++){ const m=s.match(timeRules[i]); if(m){ time=m[0]; break; } }
   const isChoice=/要不要|该不该|选哪个|哪个更好|二选一|去还是|留还是|走还是|做不做|值不值得|能不能|该走该留|还是|或者/.test(s);
-  return { raw:s, obj:obj, time:time, isChoice:isChoice, has:s.length>0 };
+  const actRules=[
+    [/分手|分开|离婚|断联|甩了/,'分手'],[/复合|和好|挽回|重新在一起/,'复合'],[/表白|告白/,'表白'],
+    [/在一起|确定关系/,'在一起'],[/结婚|领证|求婚/,'结婚'],[/相亲|见面/,'相亲'],[/异地|冷战/,'异地'],
+    [/跳槽|辞职|离职|换工作/,'跳槽'],[/升职|加薪|晋升|转正/,'升职'],[/面试|应聘/,'面试'],[/创业|单干/,'创业'],
+    [/投资|理财|炒股|基金/,'投资'],[/买房|买车|购车/,'买房'],[/借钱|还钱|欠款|回款/,'钱款'],[/合作|项目|签约/,'合作'],
+    [/考研|考公|留学|考试/,'考试'],[/搬家|装修|手术|治疗/,'这件事']
+  ];
+  let act='';
+  for(let i=0;i<actRules.length;i++){ if(actRules[i][0].test(s)){ act=actRules[i][1]; break; } }
+  return { raw:s, obj:obj, time:time, act:act, isChoice:isChoice, has:s.length>0 };
 }
+function qShort(Q,n){ const s=(Q&&Q.raw)?Q.raw:''; n=n||22; return s.length>n?s.slice(0,n)+'…':s; }
+function qMatter(Q,cat){
+  if(!Q||!Q.has) return '这件事';
+  if(Q.act) return Q.isChoice?('要不要'+Q.act+'这件事'):(Q.act+'这件事');
+  if(Q.obj) return ({感情:Q.obj+'这段关系',事业:'你在'+Q.obj+'这边的事',财运:'跟'+Q.obj+'有关的这笔财',决策:'跟'+Q.obj+'有关的这个决定'}[cat]||('你跟'+Q.obj+'的这件事'));
+  return ({感情:'你问的这段感情',事业:'你问的这份工作',财运:'你问的这笔财',决策:'你问的这个决定'}[cat]||'你问的这件事');
+}
+function qn(text){ return '<div class="qn"><b>就你这一问</b>'+text+'</div>'; }
 function qLevel(ty){ return (ty && ty.level) || '平'; }
 function qForceText(cat, ty, obj){
   const who=obj||({感情:'这段关系',事业:'这件事',财运:'这笔钱',决策:'这个选择'}[cat]||'这件事');
@@ -1307,9 +1327,14 @@ function render(r){
 
   const verdictTag = {大吉:'大吉 · 顺势',吉:'吉 · 可成',平:'平 · 顺守',小耗:'小耗 · 须力',凶:'凶 · 宜守'}[ty.level];
 
+  const qEl0=$('#qtext');
+  const qText0=qEl0 && qEl0.value ? qEl0.value.trim() : '';
+  const Q=parseQuestion(qText0), MATTER=qMatter(Q, STATE.cat);
+
   let html='';
   html+='<div class="verdict"><div class="tag">体用 · '+verdictTag+'</div>'
       +'<div class="txt">'+ty.txt+'</div>'
+      +(Q.has?'<div class="qlead">就你问的「'+qEscape(qShort(Q))+'」起这一卦</div>':'')
       +'<div class="sub" style="color:var(--muted);font-size:12.5px;margin-top:8px">'+qi
       +'　体卦 '+TRIGRAMS[ty.ti].name+TRIGRAMS[ty.ti].nature+'（'+ty.tw+'）· 用卦 '+TRIGRAMS[ty.yong].name+TRIGRAMS[ty.yong].nature+'（'+ty.yw+'）'+'</div></div>';
 
@@ -1324,8 +1349,6 @@ function render(r){
       +'<div class="sub">'+ben.xiang+'</div></div>';
 
   // ===== 白话解辞 + 就你这一问：问题关联解读（原卦辞与通用白话全保留）=====
-  const qEl0=$('#qtext');
-  const qText0=qEl0 && qEl0.value ? qEl0.value.trim() : '';
   const yaoText=YAO[ben.n][r.dong-1];
   const yqp=yingqiPrecise(ty, r.dong, monthNow);
   html+=plainBlock(ben, qText0, {
@@ -1340,24 +1363,43 @@ function render(r){
   const dr=deepReading(STATE.cat, ben, hu, ch, ty, r.dong, monthNow);
 
   html+='<div class="block"><h3><span class="num">体用格局</span>你与所问之事的强弱</h3>'
-      +'<div class="body">'+dr.guju+'</div></div>';
+      +'<div class="body">'+dr.guju+'</div>'
+      +(Q.has?qn('你问的是「'+qEscape(qShort(Q))+'」。落到卦上：体卦'+TRIGRAMS[ty.ti].name+'代表你在这件事里的处境，'
+        +'用卦'+TRIGRAMS[ty.yong].name+'代表'+MATTER+'那一头；'
+        +(ty.level==='大吉'||ty.level==='吉'?'这一问的势能倾向你这边，可主动推进。':ty.level==='凶'?'这一问的压力主要来自'+MATTER+'那头，宜守不宜强出头。':ty.level==='小耗'?'你在这件事上付出偏多，'+MATTER+'回报在后头，别急着算账。':'你与'+MATTER+'势均力敌，顺着现有节奏走最稳。')
+        +''):'')
+      +'</div>';
 
   html+='<div class="block"><h3><span class="num">分类取读</span>'+dr.label+' · 类象落点</h3>'
       +'<div class="body">'+dr.relByCat+'</div>'
       +'<div class="sub">体卦取象：'+dr.tiImg.person+' ｜ '+dr.tiImg.obj+' ｜ '+dr.tiImg.place+'</div>'
-      +'<div class="sub">用卦取象：'+dr.yongImg.person+' ｜ '+dr.yongImg.obj+' ｜ '+dr.yongImg.place+'</div></div>';
+      +'<div class="sub">用卦取象：'+dr.yongImg.person+' ｜ '+dr.yongImg.obj+' ｜ '+dr.yongImg.place+'</div>'
+      +(Q.has?qn('就你这桩「'+qEscape(qShort(Q))+'」看：'+MATTER+'的落点，'
+        +(Q.obj?'关键人／事就落在「'+qEscape(Q.obj)+'」身上，':'')
+        +(Q.act?'你问的动作是「'+qEscape(Q.act)+'」——':'')
+        +dr.relByCat.split('。')[0]+'。'):'')
+      +'</div>';
 
   html+='<div class="block"><h3><span class="num">过程</span>互卦 · '+hu.name+'</h3>'
-      +'<div class="body">'+dr.guocheng+'</div></div>';
+      +'<div class="body">'+dr.guocheng+'</div>'
+      +(Q.has?qn('这件事（'+MATTER+'）的中间阶段，对应互卦'+hu.name+'：'+hu.xiang
+        +'。也就是你问的「'+qEscape(qShort(Q))+'」在展开过程中，会先经历这样一层状态，别只盯着开头。'):'')
+      +'</div>';
 
   html+='<div class="block"><h3><span class="num">结局</span>变卦 · '+ch.name+'</h3>'
-      +'<div class="body">'+dr.bianHua+'</div></div>';
+      +'<div class="body">'+dr.bianHua+'</div>'
+      +(Q.has?qn('你问的「'+qEscape(qShort(Q))+'」走到最后，卦指向'+ch.name+'：'+ch.xiang
+        +'。落到'+MATTER+'上，'+(ty.level==='凶'||ty.level==='小耗'?'结局需留一手，别把话说满、把事做绝。':'结局大体可期，坚持到这一步就有结果。')):'')
+      +'</div>';
 
   const hints=yaoKeyHints(yaoText);
   html+='<div class="block"><h3><span class="num">应期</span>何时见分晓</h3>'
       +'<div class="body">'+yqp.text+'（'+yqp.src+'起数，'+(yqp.key==='旺'||yqp.key==='相'?'卦气旺相故速':'卦气休囚故迟')+'）。</div>'
       +'<div class="sub">取数依据：'+dr.yq.text+'</div>'
-      +(hints.length?'<div class="sub">动爻关键词：'+hints.join(' ')+'</div>':'')+'</div>';
+      +(hints.length?'<div class="sub">动爻关键词：'+hints.join(' ')+'</div>':'')
+      +(Q.has?qn('你问的「'+qEscape(qShort(Q))+'」，'+MATTER+'大约'+yqp.fast+(yqp.slow!==yqp.fast?('～'+yqp.slow):'')+'天内见分晓'
+        +(Q.time?'；你自己提到「'+qEscape(Q.time)+'」，把这个时间点当观察窗口，到时回头核对这卦。':'；到点回头核对这卦，验证是不是这个走向。')+''):'')
+      +'</div>';
 
   // ===== 断事落地：把卦象翻成人、事、时、方 =====
   const lq=liuqinOf(ty, STATE.cat), clues=landingClues(ty);
@@ -1366,13 +1408,20 @@ function render(r){
       +'<div class="clue-grid">'
       +'<div class="clue"><div class="k">方位</div><div class="v">'+clues.dirLine+'</div></div>'
       +'<div class="clue"><div class="k">色 · 数 · 时</div><div class="v">'+clues.objLine+'</div></div>'
-      +'</div></div>';
+      +'</div>'
+      +(Q.has?qn('把你问的「'+qEscape(qShort(Q))+'」落实来看：'+MATTER+'多从「'+clues.yongDir+'」方来，'
+        +(Q.obj?'留意「'+qEscape(Q.obj)+'」那头的动向；':'')
+        +'应事多在'+clues.wi.time+'，色应「'+clues.wi.color+'」、数应「'+clues.wi.num+'」——这几条可作为你验证这一问的线索。'):'')
+      +'</div>';
 
   // ===== 爻际精断：当位 / 比应 / 承乘 =====
   const yr=yaoRelations(benL, r.dong);
   html+='<div class="block"><h3><span class="num">爻际精断</span>这一动爻的处境</h3>'
       +'<div class="body">'+yr.text+'</div>'
-      +'<div class="sub">当位：'+(yr.dang?'是':'否')+'　有应：'+(yr.ying?'是':'否')+'（动爻与相隔三位的爻为「应」）</div></div>';
+      +'<div class="sub">当位：'+(yr.dang?'是':'否')+'　有应：'+(yr.ying?'是':'否')+'（动爻与相隔三位的爻为「应」）</div>'
+      +(Q.has?qn('就你问的「'+qEscape(qShort(Q))+'」而言，这一动爻说的是你此刻在'+MATTER+'里的位置：'
+        +(yr.dang&&yr.ying?'既有位置又有人呼应，'+MATTER+'这件事你可以放心去推动。':yr.dang?'你自己站得稳，但'+MATTER+'外面接应不足，得稳扎稳打。':yr.ying?'有人呼应你，但你在'+MATTER+'里位置还没坐稳，先把根基弄扎实。':'在'+MATTER+'里你既失位又少援，硬动费力，宜借势不宜强为。')):'' )
+      +'</div>';
 
   // ===== 卦象结构：错卦（隐患）/ 综卦（换位），象数拓展 =====
   const sg=structGua(benL);
@@ -1381,10 +1430,16 @@ function render(r){
       +'<div class="struct-chip"><div class="k">错卦 · 反面隐患</div><div class="v">'+sg.cuo.name+'</div><div class="d">'+sg.cuo.xiang+'</div></div>'
       +'<div class="struct-chip"><div class="k">综卦 · 换位视角</div><div class="v">'+sg.zong.name+'</div><div class="d">'+sg.zong.xiang+'</div></div>'
       +'</div>'
-      +'<div class="sub">错卦（六爻全反）提示事情的反面与隐患；综卦（上下颠倒）是从对方／另一角度看同一件事。此属《周易》象数拓展，非梅花正统。</div></div>';
+      +'<div class="sub">错卦（六爻全反）提示事情的反面与隐患；综卦（上下颠倒）是从对方／另一角度看同一件事。此属《周易》象数拓展，非梅花正统。</div>'
+      +(Q.has?qn('对着你问的「'+qEscape(qShort(Q))+'」：错卦'+sg.cuo.name+'提醒'+MATTER+'的反面隐患——'+sg.cuo.xiang
+        +'；综卦'+sg.zong.name+'则是换到对面／另一个角度看你这件事——'+sg.zong.xiang+'。'):'')
+      +'</div>';
 
   html+='<div class="block" style="border-color:var(--accent-border);background:var(--accent-soft)"><h3><span class="num">心镜回照</span>落到一处</h3>'
-      +'<div class="body">'+mirrorActionDeep(STATE.cat, ty, monthNow)+'</div></div>';
+      +'<div class="body">'+mirrorActionDeep(STATE.cat, ty, monthNow)+'</div>'
+      +(Q.has?qn('这面镜子照的是你问的「'+qEscape(qShort(Q))+'」：'+MATTER+'这事，今天你能落地的就是上面那一小步——'
+        +(ty.level==='凶'?'先不做加法，把要收回的、要暂缓的列出来。':ty.level==='大吉'?'趁势把它往前推一格，哪怕只推一点。':'把最关键的一环弄清楚、定下来。')):'' )
+      +'</div>';
 
   html+='<div class="center"><span class="params">'+paramHTML+'</span></div>';
 
